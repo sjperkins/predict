@@ -53,8 +53,8 @@ def predict_vis(args: argparse.Namespace, sky_model: WSCleanModel):
         spw = spw_ds[ddid.SPECTRAL_WINDOW_ID.values[0]]
         pol = pol_ds[ddid.POLARIZATION_ID.values[0]]
 
-        frequency = spw.CHAN_FREQ.data[0]
-        # frequency = da.linspace(.856e9, 2*.856e9, 4096, chunks=args.chunks["chan"])
+        # frequency = spw.CHAN_FREQ.data[0]
+        frequency = da.linspace(.856e9, 2*.856e9, args.dimensions["chan"], chunks=args.chunks["chan"])
 
         with warnings.catch_warnings():
             # Ignore dask chunk warnings emitted when going from 1D
