@@ -3,6 +3,7 @@ import warnings
 
 import dask
 import dask.array as da
+from dask.graph_manipulation import clone
 from africanus.coordinates.dask import radec_to_lm
 from africanus.rime.dask import wsclean_predict
 from daskms import xds_from_storage_ms, xds_from_storage_table
@@ -62,14 +63,16 @@ def predict_vis(args: argparse.Namespace, sky_model: WSCleanModel):
             warnings.simplefilter("ignore", category=da.PerformanceWarning)
             vis = wsclean_predict(
                 ds.UVW.data,
-                radec_to_lm(sky_model.radec, field.PHASE_DIR.values[0][0]),
-                sky_model.source_type,
-                sky_model.flux,
-                sky_model.spi,
-                sky_model.log_poly,
-                sky_model.ref_freq,
-                sky_model.gauss_shape,
-                frequency,
+                radec_to_lm(
+                    clone(sky_model.radec),
+                    field.PHASE_DIR.values[0][0]),
+                    clone(sky_model.source_type),
+                    clone(sky_model.flux),
+                    clone(sky_model.spi),
+                    clone(sky_model.log_poly),
+                    clone(sky_model.ref_freq),
+                    clone(sky_model.gauss_shape),
+                    clone(frequency),
             )
 
             vis = expand_vis(vis, pol.NUM_CORR.values[0])
