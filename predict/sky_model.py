@@ -1,8 +1,7 @@
+from argparse import Namespace
 from collections import namedtuple
 
-import numpy as np
-
-from africanus.model.wsclean.file_model import load
+import dask.array as da
 
 WSCleanModel = namedtuple(
     "WSCleanModel",
@@ -10,38 +9,28 @@ WSCleanModel = namedtuple(
 )
 
 
-def load_sky_model(sky_model_filename: str) -> WSCleanModel:
-    wsclean_comps = {
-        column: np.asarray(values) for column, values in load(sky_model_filename)
-    }
+def generate_sky_model(args: Namespace) -> WSCleanModel:
+    sdims = args.dimensions["source"]
+    schunks = args.chunks["source"]
 
-    if np.unique(wsclean_comps["LogarithmicSI"]).shape[0] > 1:
-        raise ValueError(
-            f"Mixed log and ordinary polynomial "
-            f"coefficients in '{sky_model_filename}'"
-        )
+    # MeerKAT centre frequency
+    ref_freq = da.full(sdims, (0.856e9 + 2 * 0.856e9) / 2, chunks=schunks)
+    source_type = da.full(sdims, "POINT", chunks=schunks, dtype="<U5")
+    flux = da.random.random(sdims, chunks=schunks) * 1e-4
+    spi = da.random.random((sdims, 2), chunks=schunks) * 1e-3
 
-    # Create radec array
-    radec = np.concatenate(
-        (wsclean_comps["Ra"][:, None], wsclean_comps["Dec"][:, None]), axis=1
-    )
-
-    # Create gaussian shapes
-    gauss_shape = np.stack(
-        (
-            wsclean_comps["MajorAxis"],
-            wsclean_comps["MinorAxis"],
-            wsclean_comps["Orientation"],
-        ),
-        axis=-1,
-    )
+    # six degrees around zero
+    radec = da.random.random((sdims, 2), chunks=(schunks, 2))
+    radec = da.deg2rad(6.0 * (radec - 0.5))
+    log_si = da.full(sdims, False, chunks=schunks)
+    gauss_shape = da.zeros((sdims, 3), chunks=schunks)
 
     return WSCleanModel(
-        wsclean_comps["Type"],
+        source_type,
         radec,
-        wsclean_comps["I"],
-        wsclean_comps["SpectralIndex"],
-        wsclean_comps["ReferenceFrequency"],
-        wsclean_comps["LogarithmicSI"],
+        flux,
+        spi,
+        ref_freq,
+        log_si,
         gauss_shape,
     )

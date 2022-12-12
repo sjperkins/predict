@@ -1,40 +1,46 @@
 import argparse
-from contextlib import ExitStack
 import sys
+from contextlib import ExitStack
+from typing import Dict, Iterable
 
 from distributed import Client, LocalCluster
 
-from typing import Dict, List
-
-from predict.sky_model import load_sky_model
 from predict.prediction import predict_vis
+from predict.sky_model import generate_sky_model
 
 
 class Application:
-    DEFAULT_ROWS = 10000
-    DEFAULT_CHANS = 64
-    DEFAULT_SOURCES = 100
+    DEFAULT_CHANS = 4096
+    DEFAULT_SOURCES = 1000
+
+    DEFAULT_ROW_CHUNKS = 10000
+    DEFAULT_CHAN_CHUNKS = 64
+    DEFAULT_SOURCE_CHUNKS = 100
+
+    DEFAULT_DIMENSIONS = f"{{chan: {DEFAULT_CHANS}," f"source: {DEFAULT_SOURCES}}}"
 
     DEFAULT_CHUNKS = (
-        f"{{row: {DEFAULT_ROWS}, chan: {DEFAULT_CHANS}, source: {DEFAULT_SOURCES}}}"
+        f"{{row: {DEFAULT_ROW_CHUNKS},"
+        f"chan: {DEFAULT_CHAN_CHUNKS},"
+        f"source: {DEFAULT_SOURCE_CHUNKS}}}"
     )
 
-    def __init__(self, args: List[str]):
+    def __init__(self, args: Iterable[str]):
         self.args = self.parse_args(args)
 
     @staticmethod
-    def parse_chunks(chunks: str) -> Dict[str, int]:
-        msg = f"'{chunks}' does not conform to {{d1: s1, d2: s2, ..., dn: sn}}"
+    def parse_dim_dict(dims: str) -> Dict[str, int]:
+        msg = f"'{dims}' does not conform to {{d1: s1, d2: s2, ..., dn: sn}}"
         err = argparse.ArgumentTypeError(msg)
-        chunks = chunks.strip()
+        dims = dims.strip()
 
-        if not chunks[0] == "{" and chunks[-1] == "}":
+        if not dims[0] == "{" and dims[-1] == "}":
             raise err
 
         result = {}
 
-        for chunk in [c.strip() for c in chunks[1:-1].split(",")]:
-            bits = [b.strip() for b in chunk.split(":")]
+        for dim in [d.strip() for d in dims[1:-1].split(",")]:
+            bits = [b.strip() for b in dim.split(":")]
 
             if len(bits) != 2:
                 raise err
@@ -44,17 +50,12 @@ class Application:
             except ValueError:
                 raise err
 
-        result.setdefault("row", Application.DEFAULT_ROWS)
-        result.setdefault("chan", Application.DEFAULT_CHANS)
-        result.setdefault("source", Application.DEFAULT_SOURCES)
-
         return result
 
     @staticmethod
-    def parse_args(args: List[str]) -> argparse.Namespace:
+    def parse_args(args: Iterable[str]) -> argparse.Namespace:
         p = argparse.ArgumentParser()
         p.add_argument("store", help="Measurement Set store")
-        p.add_argument("--sky-model", help="Sky model file", required=True)
         p.add_argument("--output-store", required=False)
         p.add_argument("--output-column", default="MODEL_DATA")
         p.add_argument("--address", help="distributed scheduler address")
@@ -62,15 +63,28 @@ class Application:
             "--workers", help="number of distributed workers", type=int, default=8
         )
         p.add_argument(
+            "--dimensions",
+            default=Application.DEFAULT_DIMENSIONS,
+            type=Application.parse_dim_dict,
+        )
+
+        p.add_argument(
             "--chunks",
             default=Application.DEFAULT_CHUNKS,
-            type=Application.parse_chunks,
+            type=Application.parse_dim_dict,
         )
 
         args = p.parse_args(args)
 
         if not args.output_store:
             args.output_store = args.store
+
+        args.dimensions.setdefault("chan", Application.DEFAULT_CHANS)
+        args.dimensions.setdefault("source", Application.DEFAULT_SOURCES)
+
+        args.chunks.setdefault("row", Application.DEFAULT_ROW_CHUNKS)
+        args.chunks.setdefault("chan", Application.DEFAULT_CHAN_CHUNKS)
+        args.chunks.setdefault("source", Application.DEFAULT_SOURCE_CHUNKS)
 
         return args
 
@@ -90,14 +104,15 @@ class Application:
 
     def run(self):
         with ExitStack() as stack:
-            client = self.get_client(self.args, stack)
-            model = load_sky_model(self.args.sky_model)
+            self.get_client(self.args, stack)
+            model = generate_sky_model(self.args)
 
             predict_vis(self.args, model)
 
 
 def main():
     Application(sys.argv[1:]).run()
+
 
 if __name__ == "__main__":
     main()
