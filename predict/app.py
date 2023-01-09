@@ -79,6 +79,8 @@ class Application:
             type=Application.parse_dim_dict,
         )
 
+        p.add_argument("--expand_vis", action="store_true")
+
         args = p.parse_args(args)
 
         if args.output_store.exists():

@@ -103,7 +103,8 @@ def predict_vis(args: argparse.Namespace, sky_model: WSCleanModel):
                 frequency,
             )
 
-            vis = expand_vis(vis, pol.NUM_CORR.values[0])
+            if args.expand_vis:
+                vis = expand_vis(vis, pol.NUM_CORR.values[0])
 
         # Assign visibilities to MODEL_DATA array on the dataset
         ods = ds.assign(**{args.output_column: (("row", "chan", "corr"), vis)})
