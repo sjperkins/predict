@@ -7,6 +7,8 @@ from unittest import mock
 
 from dask.distributed import Client, LocalCluster
 
+from daskms.fsspec_store import DaskMSStore
+
 from predict.prediction import predict_vis
 from predict.sky_model import generate_sky_model
 from predict.utils import _fuse_annotations
@@ -59,7 +61,7 @@ class Application:
     def parse_args(args: Iterable[str]) -> argparse.Namespace:
         p = argparse.ArgumentParser()
         p.add_argument("store", help="Measurement Set store")
-        p.add_argument("--output-store", required=False)
+        p.add_argument("--output-store", required=True, type=DaskMSStore)
         p.add_argument("--output-column", default="MODEL_DATA")
         p.add_argument("--address", help="distributed scheduler address")
         p.add_argument(
@@ -79,9 +81,8 @@ class Application:
 
         args = p.parse_args(args)
 
-        if not args.output_store:
-            args.output_store = args.store
-
+        if args.output_store.exists():
+            args.output_store.rm(recursive=True)
         args.dimensions.setdefault("chan", Application.DEFAULT_CHANS)
         args.dimensions.setdefault("source", Application.DEFAULT_SOURCES)
 
