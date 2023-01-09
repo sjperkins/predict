@@ -1,14 +1,17 @@
 import argparse
+import math
 import warnings
 
 import dask
 import dask.array as da
+from dask.distributed import get_client
 from dask.graph_manipulation import clone
 from africanus.coordinates.dask import radec_to_lm
 from africanus.rime.dask import wsclean_predict
 from daskms import xds_from_storage_ms, xds_from_storage_table
 from daskms.experimental.zarr import xds_to_zarr
 from daskms.fsspec_store import DaskMSStore
+
 
 from predict.sky_model import WSCleanModel
 
@@ -26,12 +29,9 @@ def expand_vis(vis, corrs):
 
 
 def predict_vis(args: argparse.Namespace, sky_model: WSCleanModel):
-    datasets = xds_from_storage_ms(
-        args.store,
-        columns=["UVW", "ANTENNA1", "ANTENNA2", "TIME"],
-        group_cols=["FIELD_ID", "DATA_DESC_ID"],
-        chunks={k: args.chunks[k] for k in ("row",)},
-    )
+    client = get_client()
+    nchan = args.dimensions["chan"]
+    chan_chunks = args.chunks["chan"]
 
     store = DaskMSStore(args.store)
     kw = {"group_cols": "__row__"} if store.type() == "casa" else {}
@@ -46,33 +46,61 @@ def predict_vis(args: argparse.Namespace, sky_model: WSCleanModel):
     (spw_ds,) = dask.compute(spw_ds)
     (field_ds,) = dask.compute(field_ds)
 
+    datasets = xds_from_storage_ms(
+        args.store,
+        columns=["UVW"],
+        group_cols=["FIELD_ID", "DATA_DESC_ID"],
+        chunks={k: args.chunks[k] for k in ("row",)},
+    )
+
+    ds_row_chunks = [len(ds.chunks["row"]) for ds in datasets]
+    nchunks = sum(ds_row_chunks)
+    start_chunk = 0
+
+    workers = [w["name"] for w in client.scheduler_info()["workers"].values()]
+    nworkers = len(workers)
+
     out_datasets = []
 
-    for ds in datasets:
+    for ds, row_chunks in zip(datasets, ds_row_chunks):
         field = field_ds[ds.attrs["FIELD_ID"]]
         ddid = ddid_ds[ds.attrs["DATA_DESC_ID"]]
-        spw = spw_ds[ddid.SPECTRAL_WINDOW_ID.values[0]]
+        # spw = spw_ds[ddid.SPECTRAL_WINDOW_ID.values[0]]
         pol = pol_ds[ddid.POLARIZATION_ID.values[0]]
 
         # frequency = spw.CHAN_FREQ.data[0]
-        frequency = da.linspace(.856e9, 2*.856e9, args.dimensions["chan"], chunks=args.chunks["chan"])
+        frequency = da.linspace(0.856e9, 2 * 0.856e9, nchan, chunks=chan_chunks)
 
-        with warnings.catch_warnings():
+        radec = clone(sky_model.radec)
+        source_type = clone(sky_model.source_type)
+        flux = clone(sky_model.flux)
+        spi = clone(sky_model.spi)
+        log_poly = clone(sky_model.log_poly)
+        ref_freq = clone(sky_model.ref_freq)
+        gauss_shape = clone(sky_model.gauss_shape)
+
+        def stripe(k):
+            return math.floor(nworkers * ((start_chunk + k[1]) / nchunks))
+
+        with dask.annotate(workers=stripe):
+            uvw = clone(ds.UVW.data)
+
+        lm = radec_to_lm(radec, field.PHASE_DIR.values[0][0])
+
+        with warnings.catch_warnings(), dask.annotate(workers=stripe):
             # Ignore dask chunk warnings emitted when going from 1D
             # inputs to a 2D space of chunks
             warnings.simplefilter("ignore", category=da.PerformanceWarning)
             vis = wsclean_predict(
-                ds.UVW.data,
-                radec_to_lm(
-                    clone(sky_model.radec),
-                    field.PHASE_DIR.values[0][0]),
-                    clone(sky_model.source_type),
-                    clone(sky_model.flux),
-                    clone(sky_model.spi),
-                    clone(sky_model.log_poly),
-                    clone(sky_model.ref_freq),
-                    clone(sky_model.gauss_shape),
-                    clone(frequency),
+                uvw,
+                lm,
+                source_type,
+                flux,
+                spi,
+                log_poly,
+                ref_freq,
+                gauss_shape,
+                frequency,
             )
 
             vis = expand_vis(vis, pol.NUM_CORR.values[0])
@@ -81,7 +109,8 @@ def predict_vis(args: argparse.Namespace, sky_model: WSCleanModel):
         ods = ds.assign(**{args.output_column: (("row", "chan", "corr"), vis)})
         out_datasets.append(ods)
 
-    # Create a write to the table
+        start_chunk += row_chunks
+
+    # Write to table
     write = xds_to_zarr(out_datasets, args.output_store, columns=[args.output_column])
-    # Add to the list of writes
     dask.compute(write, sync=True)

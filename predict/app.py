@@ -3,13 +3,13 @@ import logging
 import sys
 from contextlib import ExitStack
 from typing import Dict, Iterable
+from unittest import mock
 
-from distributed import Client, LocalCluster
+from dask.distributed import Client, LocalCluster
 
 from predict.prediction import predict_vis
 from predict.sky_model import generate_sky_model
-
-
+from predict.utils import _fuse_annotations
 
 
 class Application:
@@ -89,10 +89,6 @@ class Application:
         args.chunks.setdefault("chan", Application.DEFAULT_CHAN_CHUNKS)
         args.chunks.setdefault("source", Application.DEFAULT_SOURCE_CHUNKS)
 
-        from pprint import pprint
-        pprint(["Dimensions", args.dimensions])
-        pprint(["Chunks", args.chunks])
-
         return args
 
     @staticmethod
@@ -113,13 +109,19 @@ class Application:
         return stack.enter_context(Client(address))
 
     def run(self):
-        logging.basicConfig(format='%(levelname)s - %(message)s', level=logging.INFO)
+        logging.basicConfig(format="%(levelname)s - %(message)s", level=logging.INFO)
 
         with ExitStack() as stack:
+            stack.enter_context(
+                mock.patch("dask.blockwise._fuse_annotations", _fuse_annotations)
+            )
             client = self.get_client(self.args, stack)
             logging.info("Waiting for %d workers to be ready", self.args.workers)
             client.wait_for_workers(self.args.workers)
-            logging.info("Generating sky model of %s sources", self.args.dimensions["source"])
+            client.amm.stop()
+            logging.info(
+                "Generating sky model of %s sources", self.args.dimensions["source"]
+            )
             model = generate_sky_model(self.args)
 
             logging.info("Predicting Visibilities")
