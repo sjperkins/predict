@@ -31,6 +31,7 @@ class Application:
     )
 
     def __init__(self, args: Iterable[str]):
+        logging.basicConfig(format="%(levelname)s - %(message)s", level=logging.INFO)
         self.args = self.parse_args(args)
 
     @staticmethod
@@ -79,7 +80,8 @@ class Application:
             type=Application.parse_dim_dict,
         )
 
-        p.add_argument("--expand_vis", action="store_true")
+        p.add_argument("--expand_vis", action="store_true", default=False)
+        p.add_argument("--optimize-graph", action="store_true", default=False)
 
         args = p.parse_args(args)
 
@@ -92,6 +94,14 @@ class Application:
         args.chunks.setdefault("chan", Application.DEFAULT_CHAN_CHUNKS)
         args.chunks.setdefault("source", Application.DEFAULT_SOURCE_CHUNKS)
 
+        logging.info("Command Line Arguments")
+        logging.info("----------------------")
+
+        for k, v in vars(args).items():
+            logging.info("%s: %s", k, v)
+
+        logging.info("----------------------")
+
         return args
 
     @staticmethod
@@ -99,7 +109,7 @@ class Application:
         if not args.address:
             cluster = stack.enter_context(
                 LocalCluster(
-                    n_workers=args.workers, processes=False, threads_per_worker=1
+                    n_workers=args.workers, processes=True, threads_per_worker=1
                 )
             )
             address = cluster.scheduler_address
@@ -112,8 +122,6 @@ class Application:
         return stack.enter_context(Client(address))
 
     def run(self):
-        logging.basicConfig(format="%(levelname)s - %(message)s", level=logging.INFO)
-
         with ExitStack() as stack:
             stack.enter_context(
                 mock.patch("dask.blockwise._fuse_annotations", _fuse_annotations)

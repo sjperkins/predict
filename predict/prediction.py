@@ -28,6 +28,15 @@ def expand_vis(vis, corrs):
         raise ValueError(f"MS Correlations {corrs} not in (1, 2, 4)")
 
 
+def stripe_fn(start_chunk, workers, nchunks):
+    nworkers = len(workers)
+
+    def stripe(k):
+        return workers[math.floor(nworkers * ((start_chunk + k[1]) / nchunks))]
+
+    return stripe
+
+
 def predict_vis(args: argparse.Namespace, sky_model: WSCleanModel):
     client = get_client()
     nchan = args.dimensions["chan"]
@@ -58,8 +67,6 @@ def predict_vis(args: argparse.Namespace, sky_model: WSCleanModel):
     start_chunk = 0
 
     workers = [w["name"] for w in client.scheduler_info()["workers"].values()]
-    nworkers = len(workers)
-
     out_datasets = []
 
     for ds, row_chunks in zip(datasets, ds_row_chunks):
@@ -79,18 +86,18 @@ def predict_vis(args: argparse.Namespace, sky_model: WSCleanModel):
         ref_freq = clone(sky_model.ref_freq)
         gauss_shape = clone(sky_model.gauss_shape)
 
-        def stripe(k):
-            return math.floor(nworkers * ((start_chunk + k[1]) / nchunks))
+        stripe = stripe_fn(start_chunk, workers, nchunks)
 
         with dask.annotate(workers=stripe):
             uvw = clone(ds.UVW.data)
 
         lm = radec_to_lm(radec, field.PHASE_DIR.values[0][0])
 
-        with warnings.catch_warnings(), dask.annotate(workers=stripe):
+        with warnings.catch_warnings():
             # Ignore dask chunk warnings emitted when going from 1D
             # inputs to a 2D space of chunks
             warnings.simplefilter("ignore", category=da.PerformanceWarning)
+
             vis = wsclean_predict(
                 uvw,
                 lm,
@@ -103,8 +110,11 @@ def predict_vis(args: argparse.Namespace, sky_model: WSCleanModel):
                 frequency,
             )
 
+            vis.dask.layers[vis.name].annotations = {"workers": stripe}
+
             if args.expand_vis:
                 vis = expand_vis(vis, pol.NUM_CORR.values[0])
+                vis.dask.layers[vis.name].annotations = {"workers": stripe}
 
         # Assign visibilities to MODEL_DATA array on the dataset
         ods = ds.assign(**{args.output_column: (("row", "chan", "corr"), vis)})
@@ -114,4 +124,4 @@ def predict_vis(args: argparse.Namespace, sky_model: WSCleanModel):
 
     # Write to table
     write = xds_to_zarr(out_datasets, args.output_store, columns=[args.output_column])
-    dask.compute(write, sync=True)
+    dask.compute(write, sync=True, optimize_graph=args.optimize_graph)
