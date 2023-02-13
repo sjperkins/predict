@@ -15,24 +15,24 @@ class PinnedPlugin(SchedulerPlugin):
             blocks = annotations["blocks"]
         except KeyError:
             return
-        else:
-            for k, v in blocks.items():
-                try:
-                    key_dims = dims[k]
-                    row_dim = key_dims.index("row")
-                    start, total = v["row"]
-                except (KeyError, ValueError):
-                    continue
 
-                # NOTE(sjperkins)
-                # optimise with k.rfind(",", 0, len(k))
-                tuple_key = literal_eval(k)
-                row_chunk = tuple_key[row_dim + 1]
-                assert isinstance(row_chunk, int)
+        for k, v in blocks.items():
+            try:
+                key_dims = dims[k]
+                row_dim = key_dims.index("row")
+                start, total = v["row"]
+            except (KeyError, ValueError):
+                continue
 
-                worker_id = math.floor(nworkers * ((start + row_chunk) / total))
-                ts = scheduler.tasks.get(k)
-                ts.worker_restrictions = set([worker_names[worker_id]])
+            # NOTE(sjperkins)
+            # optimise with k.rfind(",", 0, len(k))
+            tuple_key = literal_eval(k)
+            row_chunk = tuple_key[row_dim + 1]
+            assert isinstance(row_chunk, int)
+
+            worker_id = math.floor(nworkers * ((start + row_chunk) / total))
+            ts = scheduler.tasks.get(k)
+            ts.worker_restrictions = set([worker_names[worker_id]])
 
 
 
