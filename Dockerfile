@@ -1,5 +1,5 @@
 FROM ubuntu:focal
-MAINTAINER Simon Perkins "simon.perkins@gmail.com"
+LABEL org.opencontainers.image.authors="simon.perkins@gmail.com"
 
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt -y update && \
