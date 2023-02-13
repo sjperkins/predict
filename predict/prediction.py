@@ -115,11 +115,9 @@ def predict_vis(args: argparse.Namespace, sky_model: WSCleanModel):
 
 
     for i, ds in enumerate(write):
-        out_array = getattr(write[0], args.output_column).data
+        out_array = getattr(ds, args.output_column).data
         annotations = out_array.dask.layers[out_array.name].annotations
         assert annotations["dims"] == ("row", "chan", "corr")
-        assert annotations["dataset_id"] == i
-        print(annotations["blocks"])
-
+        assert annotations["dataset_id"] == i, (annotations["dataset_id"], i)
 
     dask.compute(write, sync=True, optimize_graph=args.optimize_graph)
