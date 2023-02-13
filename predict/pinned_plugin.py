@@ -1,4 +1,5 @@
 from ast import literal_eval
+import logging
 import math
 
 from dask.distributed.diagnostics.plugin import SchedulerPlugin
@@ -13,14 +14,15 @@ class PinnedPlugin(SchedulerPlugin):
         try:
             dims = annotations["dims"]
             blocks = annotations["blocks"]
-        except KeyError:
+        except KeyError as e:
+            logging.warning("No %s annotations could be found in PinnedPlugin", str(e))
             return
 
-        for k, v in blocks.items():
+        for k, block in blocks.items():
             try:
                 key_dims = dims[k]
                 row_dim = key_dims.index("row")
-                start, total = v["row"]
+                start, total = block["row"]
             except (KeyError, ValueError):
                 continue
 
