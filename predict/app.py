@@ -1,14 +1,18 @@
 import argparse
-import logging
-import sys
 from contextlib import ExitStack
+import logging
+from pprint import pformat
+import sys
 from typing import Dict, Iterable
 from unittest import mock
 
+import dask
+import dask.config
 from dask.distributed import Client, LocalCluster
 
 from daskms.fsspec_store import DaskMSStore
 
+from predict.pinned_plugin import install_pinned_plugin
 from predict.prediction import predict_vis
 from predict.sky_model import generate_sky_model
 from predict.utils import _fuse_annotations
@@ -126,10 +130,18 @@ class Application:
             stack.enter_context(
                 mock.patch("dask.blockwise._fuse_annotations", _fuse_annotations)
             )
+            stack.enter_context(
+                dask.config.set({"distributed.scheduler.work-stealing": False})
+            )
+
+            logging.info("dask configuration")
+            logging.info(pformat(dask.config.config))
+
             client = self.get_client(self.args, stack)
             logging.info("Waiting for %d workers to be ready", self.args.workers)
             client.wait_for_workers(self.args.workers)
-            client.amm.stop()
+            client.amm.stop()  # Disable active memory manager
+            client.run_on_scheduler(install_pinned_plugin)
             logging.info(
                 "Generating sky model of %s sources", self.args.dimensions["source"]
             )

@@ -13,6 +13,7 @@ from daskms.experimental.zarr import xds_to_zarr
 from daskms.fsspec_store import DaskMSStore
 
 
+from predict.annotations import annotate_datasets, dim_propagator
 from predict.sky_model import WSCleanModel
 
 
@@ -26,15 +27,6 @@ def expand_vis(vis, corrs):
         return da.concatenate([vis, zeros, zeros, vis], axis=2).rechunk({2: corrs})
     else:
         raise ValueError(f"MS Correlations {corrs} not in (1, 2, 4)")
-
-
-def stripe_fn(start_chunk, workers, nchunks):
-    nworkers = len(workers)
-
-    def stripe(k):
-        return workers[math.floor(nworkers * ((start_chunk + k[1]) / nchunks))]
-
-    return stripe
 
 
 def predict_vis(args: argparse.Namespace, sky_model: WSCleanModel):
@@ -62,66 +54,72 @@ def predict_vis(args: argparse.Namespace, sky_model: WSCleanModel):
         chunks={k: args.chunks[k] for k in ("row",)},
     )
 
-    ds_row_chunks = [len(ds.chunks["row"]) for ds in datasets]
-    nchunks = sum(ds_row_chunks)
-    start_chunk = 0
+    with dask.config.set(array_plugins=[dim_propagator("row")]):
+        datasets = annotate_datasets(datasets)
 
-    workers = [w["name"] for w in client.scheduler_info()["workers"].values()]
-    out_datasets = []
+        ds_row_chunks = [len(ds.chunks["row"]) for ds in datasets]
+        nchunks = sum(ds_row_chunks)
+        start_chunk = 0
 
-    for ds, row_chunks in zip(datasets, ds_row_chunks):
-        field = field_ds[ds.attrs["FIELD_ID"]]
-        ddid = ddid_ds[ds.attrs["DATA_DESC_ID"]]
-        # spw = spw_ds[ddid.SPECTRAL_WINDOW_ID.values[0]]
-        pol = pol_ds[ddid.POLARIZATION_ID.values[0]]
+        out_datasets = []
 
-        # frequency = spw.CHAN_FREQ.data[0]
-        frequency = da.linspace(0.856e9, 2 * 0.856e9, nchan, chunks=chan_chunks)
+        for ds, row_chunks in zip(datasets, ds_row_chunks):
+            field = field_ds[ds.attrs["FIELD_ID"]]
+            ddid = ddid_ds[ds.attrs["DATA_DESC_ID"]]
+            # spw = spw_ds[ddid.SPECTRAL_WINDOW_ID.values[0]]
+            pol = pol_ds[ddid.POLARIZATION_ID.values[0]]
 
-        radec = clone(sky_model.radec)
-        source_type = clone(sky_model.source_type)
-        flux = clone(sky_model.flux)
-        spi = clone(sky_model.spi)
-        log_poly = clone(sky_model.log_poly)
-        ref_freq = clone(sky_model.ref_freq)
-        gauss_shape = clone(sky_model.gauss_shape)
+            # frequency = spw.CHAN_FREQ.data[0]
+            with dask.annotate(dims=("chan",)):
+                frequency = da.linspace(0.856e9, 2 * 0.856e9, nchan, chunks=chan_chunks)
 
-        stripe = stripe_fn(start_chunk, workers, nchunks)
+            radec = clone(sky_model.radec)
+            source_type = clone(sky_model.source_type)
+            flux = clone(sky_model.flux)
+            spi = clone(sky_model.spi)
+            log_poly = clone(sky_model.log_poly)
+            ref_freq = clone(sky_model.ref_freq)
+            gauss_shape = clone(sky_model.gauss_shape)
 
-        with dask.annotate(workers=stripe):
-            uvw = clone(ds.UVW.data)
+            lm = radec_to_lm(radec, field.PHASE_DIR.values[0][0])
 
-        lm = radec_to_lm(radec, field.PHASE_DIR.values[0][0])
+            with warnings.catch_warnings():
+                # Ignore dask chunk warnings emitted when going from 1D
+                # inputs to a 2D space of chunks
+                warnings.simplefilter("ignore", category=da.PerformanceWarning)
 
-        with warnings.catch_warnings():
-            # Ignore dask chunk warnings emitted when going from 1D
-            # inputs to a 2D space of chunks
-            warnings.simplefilter("ignore", category=da.PerformanceWarning)
+                vis = wsclean_predict(
+                    ds.UVW.data,
+                    lm,
+                    source_type,
+                    flux,
+                    spi,
+                    log_poly,
+                    ref_freq,
+                    gauss_shape,
+                    frequency,
+                )
 
-            vis = wsclean_predict(
-                uvw,
-                lm,
-                source_type,
-                flux,
-                spi,
-                log_poly,
-                ref_freq,
-                gauss_shape,
-                frequency,
-            )
+                if args.expand_vis:
+                    vis = expand_vis(vis, pol.NUM_CORR.values[0])
 
-            vis.dask.layers[vis.name].annotations = {"workers": stripe}
+            # Assign visibilities to MODEL_DATA array on the dataset
+            ods = ds.assign(**{args.output_column: (("row", "chan", "corr"), vis)})
+            out_datasets.append(ods)
 
-            if args.expand_vis:
-                vis = expand_vis(vis, pol.NUM_CORR.values[0])
-                vis.dask.layers[vis.name].annotations = {"workers": stripe}
+            start_chunk += row_chunks
 
-        # Assign visibilities to MODEL_DATA array on the dataset
-        ods = ds.assign(**{args.output_column: (("row", "chan", "corr"), vis)})
-        out_datasets.append(ods)
+        # Write to table
+        write = xds_to_zarr(out_datasets, args.output_store, columns=[args.output_column])
+        write = annotate_datasets(write)
 
-        start_chunk += row_chunks
 
-    # Write to table
-    write = xds_to_zarr(out_datasets, args.output_store, columns=[args.output_column])
+    for i, ds in enumerate(write):
+        out_array = getattr(write[0], args.output_column).data
+        annotations = out_array.dask.layers[out_array.name].annotations
+        assert annotations["dims"] == ("row", "chan", "corr")
+        assert annotations["dataset_id"] == i
+        print(annotations["blocks"])
+
+
     dask.compute(write, sync=True, optimize_graph=args.optimize_graph)
