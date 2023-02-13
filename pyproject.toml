@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "predict"
+version = "0.1.0"
+description = ""
+authors = ["Simon Perkins <simon.perkins@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+dask-ms = {extras = ["complete"], version = "^0.2.15"}
+distributed = "^2022.11.0"
+codex-africanus = "^0.3.3"
+
+[tool.poetry.scripts]
+predict = "predict.app:main"
+
+[tool.poetry.group.dev.dependencies]
+black = "^22.10.0"
+ipython = "^8.6.0"
+
+[build-system]
+requires = ["poetry-core", "setuptools"]
+build-backend = "poetry.core.masonry.api"
