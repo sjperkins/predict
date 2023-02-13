@@ -67,7 +67,6 @@ def annotate_datasets(datasets):
     total_row_blocks = sum(row_blocks)
     start_row_block = reduce(lambda a, v: a + [a[-1] + v], row_blocks, [0])
 
-    import pdb; pdb.set_trace()
     for i, (ds, blocks) in enumerate(zip(datasets, ds_blocks)):
         block_extents = {d: (0, b) for d, b in blocks.items()}
         block_extents["row"] = (start_row_block[i], total_row_blocks)
