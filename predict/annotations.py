@@ -1,4 +1,4 @@
-from functools import partial
+from functools import partial, reduce
 from tlz.functoolz import Compose
 
 import dask
@@ -61,17 +61,16 @@ def materialized_layer_dims(layer):
         return dummy_dimensions(len(k[1:]))
 
 def annotate_datasets(datasets):
-    start_row_block = 0
-
     ds_chunks = [dict(ds.chunks) for ds in datasets]
     ds_blocks = [{d: len(c) for d, c in chunks.items()} for chunks in ds_chunks]
     row_blocks = [blocks["row"] for blocks in ds_blocks]
     total_row_blocks = sum(row_blocks)
-    row_blocks = [0]
+    start_row_block = reduce(lambda a, v: a + [a[-1] + v], row_blocks, [0])
 
+    import pdb; pdb.set_trace()
     for i, (ds, blocks) in enumerate(zip(datasets, ds_blocks)):
         block_extents = {d: (0, b) for d, b in blocks.items()}
-        block_extents["row"] = (row_blocks[i], total_row_blocks)
+        block_extents["row"] = (start_row_block[i], total_row_blocks)
 
         for v in ds.data_vars.values():
             if dask.is_dask_collection(v.data):
@@ -86,9 +85,6 @@ def annotate_datasets(datasets):
                     layer.annotations.update(annotations)
                 else:
                     layer.annotations = annotations
-
-
-
 
     return datasets
 
