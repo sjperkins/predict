@@ -8,10 +8,11 @@ from dask.distributed import get_client
 from dask.graph_manipulation import clone
 from africanus.coordinates.dask import radec_to_lm
 from africanus.rime.dask import wsclean_predict
+
 from daskms import xds_from_storage_ms, xds_from_storage_table
 from daskms.experimental.zarr import xds_to_zarr
 from daskms.fsspec_store import DaskMSStore
-
+from daskms.optimisation import inlined_array
 
 from predict.annotations import annotate_datasets, dim_propagator
 from predict.sky_model import WSCleanModel
@@ -99,6 +100,10 @@ def predict_vis(args: argparse.Namespace, sky_model: WSCleanModel):
                     gauss_shape,
                     frequency,
                 )
+
+                vis = inlined_array(vis, [
+                    lm, source_type, flux, spi, log_poly,
+                    ref_freq, gauss_shape, frequency])
 
                 if args.expand_vis:
                     vis = expand_vis(vis, pol.NUM_CORR.values[0])
