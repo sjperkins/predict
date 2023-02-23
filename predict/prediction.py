@@ -71,7 +71,7 @@ def predict_vis(args: argparse.Namespace, sky_model: WSCleanModel):
 
             # frequency = spw.CHAN_FREQ.data[0]
             with dask.annotate(dims=("chan",)):
-                frequency = da.linspace(0.856e9, 2 * 0.856e9, nchan, chunks=chan_chunks)
+                frequency = clone(da.linspace(0.856e9, 2 * 0.856e9, nchan, chunks=chan_chunks))
 
             radec = clone(sky_model.radec)
             source_type = clone(sky_model.source_type)
