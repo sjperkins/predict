@@ -35,6 +35,7 @@ class PinnedPlugin(SchedulerPlugin):
             worker_id = math.floor(nworkers * ((start + row_chunk) / total))
             ts = scheduler.tasks.get(k)
             ts.worker_restrictions = set([worker_names[worker_id]])
+            ts.loose_restrictions = True
 
 
 
