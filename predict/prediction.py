@@ -101,7 +101,7 @@ def predict_vis(args: argparse.Namespace, sky_model: WSCleanModel):
                     frequency,
                 )
 
-                vis = inlined_array(vis, [
+                vis = inlined_array(vis, [radec,
                     lm, source_type, flux, spi, log_poly,
                     ref_freq, gauss_shape, frequency])
 
