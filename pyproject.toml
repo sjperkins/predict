@@ -11,6 +11,8 @@ dask-ms = {extras = ["complete"], version = "^0.2.15"}
 distributed = "^2022.11.0"
 codex-africanus = "^0.3.3"
 bokeh = "^2.0.0"
+graphviz = "^0.20.1"
+jupyter-server-proxy = "^3.2.2"
 
 [tool.isort]
 profile = 'black'
