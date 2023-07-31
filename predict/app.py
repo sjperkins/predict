@@ -13,6 +13,7 @@ from dask.distributed import Client, LocalCluster
 from daskms.fsspec_store import DaskMSStore
 
 from predict.pinned_plugin import install_pinned_plugin
+from predict.autorestrictor import install_autorestrictor_plugin
 from predict.prediction import predict_vis
 from predict.sky_model import generate_sky_model
 from predict.utils import _fuse_annotations
@@ -141,7 +142,7 @@ class Application:
             logging.info("Waiting for %d workers to be ready", self.args.workers)
             client.wait_for_workers(self.args.workers)
             client.amm.stop()  # Disable active memory manager
-            client.run_on_scheduler(install_pinned_plugin)
+            client.run_on_scheduler(install_autorestrictor_plugin)
             logging.info(
                 "Generating sky model of %s sources", self.args.dimensions["source"]
             )

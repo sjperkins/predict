@@ -15,7 +15,7 @@ class PinnedPlugin(SchedulerPlugin):
             dims = annotations["dims"]
             blocks = annotations["blocks"]
         except KeyError as e:
-            logging.warning("No %s annotations could be found in PinnedPlugin", str(e))
+            logging.warning("PinnedPluggin found no %s annotations", str(e))
             return
 
         for k, block in blocks.items():
@@ -30,7 +30,8 @@ class PinnedPlugin(SchedulerPlugin):
             # optimise with k.rfind(",", 0, len(k))
             tuple_key = literal_eval(k)
             row_chunk = tuple_key[row_dim + 1]
-            assert isinstance(row_chunk, int)
+            if not isinstance(row_chunk, int):
+                continue
 
             worker_id = math.floor(nworkers * ((start + row_chunk) / total))
             ts = scheduler.tasks.get(k)

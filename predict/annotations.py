@@ -186,7 +186,7 @@ def dim_propagator(dims: Union[str, Iterable[str]]):
                 # Get the reduction axes and keepdim property
                 axis, keepdims = result
                 dep_layers = hlg.dependencies[x.name]
-                assert len(dep_layers) == 1
+                assert len(dep_layers) == 1, dep_layers
                 dep_layer_name = next(iter(dep_layers))
                 output_dims = dep_layer_dims[dep_layer_name]
 

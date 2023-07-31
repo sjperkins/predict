@@ -6,13 +6,13 @@ authors = ["Simon Perkins <simon.perkins@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.8.1"
-dask-ms = {extras = ["complete"], version = "^0.2.15"}
-distributed = "^2022.11.0"
+python = "^3.9.0"
+dask-ms = {extras = ["complete"], version = "^0.2.16"}
 codex-africanus = "^0.3.3"
 bokeh = "^2.0.0"
 graphviz = "^0.20.1"
 jupyter-server-proxy = "^3.2.2"
+distributed = "^2023.7.1"
 
 [tool.isort]
 profile = 'black'

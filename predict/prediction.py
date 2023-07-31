@@ -1,4 +1,5 @@
 import argparse
+from contextlib import nullcontext
 import math
 import warnings
 
@@ -54,7 +55,7 @@ def predict_vis(args: argparse.Namespace, sky_model: WSCleanModel):
         group_cols=["FIELD_ID", "DATA_DESC_ID"],
         chunks={k: args.chunks[k] for k in ("row",)},
     )
-
+    # with nullcontext():
     with dask.config.set(array_plugins=[dim_propagator("row")]):
         datasets = annotate_datasets(datasets)
 
@@ -102,9 +103,10 @@ def predict_vis(args: argparse.Namespace, sky_model: WSCleanModel):
                     frequency,
                 )
 
-                vis = inlined_array(vis, [
-                    lm, source_type, flux, spi, log_poly,
-                    ref_freq, gauss_shape, frequency])
+                # vis = inlined_array(vis, [
+                #     lm, source_type, flux, spi, log_poly,
+                #     ref_freq, gauss_shape, frequency])
+                #vis = inlined_array(vis)
 
                 if args.expand_vis:
                     vis = expand_vis(vis, pol.NUM_CORR.values[0])
