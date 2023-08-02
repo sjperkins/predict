@@ -715,13 +715,13 @@ test = ["pandas[test]", "pre-commit", "pytest", "pytest-cov", "pytest-rerunfailu
 
 [[package]]
 name = "dask-ms"
-version = "0.2.16"
+version = "0.2.17"
 description = "xarray Dataset from CASA Tables"
 optional = false
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "dask-ms-0.2.16.tar.gz", hash = "sha256:474f5fbe370e6422938a7ef8770215ef7dfa266a106da5b985bdc3e6f6323525"},
-    {file = "dask_ms-0.2.16-py3-none-any.whl", hash = "sha256:4f0867e00ee984705bd13efe50132692c652747b030cd2908251344a10c1d854"},
+    {file = "dask-ms-0.2.17.tar.gz", hash = "sha256:946a1f39d800930e20c68c9244dd3e42be355e5b0a35302fabe35c3426047777"},
+    {file = "dask_ms-0.2.17-py3-none-any.whl", hash = "sha256:07e1b1ab17a89970d52710b9cca7f1a5cd43c5ed37849c4631bb0d05b81e9dbb"},
 ]
 
 [package.dependencies]

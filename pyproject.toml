@@ -7,7 +7,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.9.0"
-dask-ms = {extras = ["complete"], version = "^0.2.16"}
+dask-ms = {extras = ["complete"], version = "^0.2.17"}
 codex-africanus = "^0.3.3"
 bokeh = "^2.0.0"
 graphviz = "^0.20.1"
