@@ -1,4 +1,4 @@
-FROM ubuntu:focal
+FROM ubuntu:jammy
 LABEL org.opencontainers.image.authors="simon.perkins@gmail.com"
 
 ARG DEBIAN_FRONTEND=noninteractive
