@@ -1,5 +1,6 @@
 import argparse
 from contextlib import ExitStack
+from datetime import datetime
 import logging
 from pprint import pformat
 import sys
@@ -9,6 +10,7 @@ from unittest import mock
 import dask
 import dask.config
 from dask.distributed import Client, LocalCluster
+from dask.distributed.client import performance_report
 
 from daskms.fsspec_store import DaskMSStore
 
@@ -64,6 +66,10 @@ class Application:
         return result
 
     @staticmethod
+    def make_report_url(report_prefix: str) -> str:
+        return datetime.now().strftime(f"{report_prefix}-%Y%m%d-%H%M%S.html")
+
+    @staticmethod
     def parse_args(args: Iterable[str]) -> argparse.Namespace:
         p = argparse.ArgumentParser()
         p.add_argument("store", help="Measurement Set store")
@@ -84,6 +90,9 @@ class Application:
             default=Application.DEFAULT_CHUNKS,
             type=Application.parse_dim_dict,
         )
+
+        p.add_argument("--report-prefix", default="report",
+                       type=Application.make_report_url)
 
         p.add_argument("--expand_vis", action="store_true", default=False)
         p.add_argument("--optimize-graph", action="store_true", default=False)
@@ -149,6 +158,8 @@ class Application:
             model = generate_sky_model(self.args)
 
             logging.info("Predicting Visibilities")
+            logging.info("Storing report at %s", self.args.report_prefix)
+            stack.enter_context(performance_report(self.args.report_prefix))
             predict_vis(self.args, model)
             logging.info("Done")
 
