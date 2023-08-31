@@ -96,6 +96,8 @@ class Application:
 
         p.add_argument("--expand_vis", action="store_true", default=False)
         p.add_argument("--optimize-graph", action="store_true", default=False)
+        p.add_argument("--plugin", choices=["none", "pinned", "autorestrictor"],
+                       default="autorestrictor")
 
         args = p.parse_args(args)
 
@@ -148,10 +150,21 @@ class Application:
             logging.info(pformat(dask.config.config))
 
             client = self.get_client(self.args, stack)
+
+            if self.args.plugin == "autorestrictor":
+                client.amm.stop()  # Disable active memory manager
+                client.run_on_scheduler(install_autorestrictor_plugin)
+            elif self.args.plugin == "pinned":
+                client.amm.stop()  # Disable active memory manager
+                client.run_on_scheduler(install_pinned_plugin)
+            elif self.arg.plugin == "none":
+                pass
+            else:
+                raise ValueError(f"Unhandled plugin {self.arg.plugin}")
+
             logging.info("Waiting for %d workers to be ready", self.args.workers)
             client.wait_for_workers(self.args.workers)
-            client.amm.stop()  # Disable active memory manager
-            client.run_on_scheduler(install_autorestrictor_plugin)
+
             logging.info(
                 "Generating sky model of %s sources", self.args.dimensions["source"]
             )
