@@ -143,7 +143,9 @@ class Application:
                 mock.patch("dask.blockwise._fuse_annotations", _fuse_annotations)
             )
             stack.enter_context(
-                dask.config.set({"distributed.scheduler.work-stealing": False})
+                dask.config.set({
+                    "distributed.scheduler.work-stealing": False,
+                    "distributed.scheduler.dashboard.tasks.task-stream-length": sys.maxsize})
             )
 
             logging.info("dask configuration")
