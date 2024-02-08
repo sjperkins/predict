@@ -55,33 +55,47 @@ def predict_vis(args: argparse.Namespace, sky_model: WSCleanModel):
         group_cols=["FIELD_ID", "DATA_DESC_ID"],
         chunks={k: args.chunks[k] for k in ("row",)},
     )
-    # with nullcontext():
-    with dask.config.set(array_plugins=[dim_propagator("row")]):
+
+    ctx = dask.config.set(array_plugins=[dim_propagator("row")]) if True else nullcontext()
+
+    with ctx:
         datasets = annotate_datasets(datasets)
 
-        ds_row_chunks = [len(ds.chunks["row"]) for ds in datasets]
-        nchunks = sum(ds_row_chunks)
-        start_chunk = 0
+        # ds_row_chunks = [len(ds.chunks["row"]) for ds in datasets]
+        # nchunks = sum(ds_row_chunks)
+        # start_chunk = 0
 
         out_datasets = []
 
-        for ds, row_chunks in zip(datasets, ds_row_chunks):
+        # for ds, row_chunks in zip(datasets, ds_row_chunks):
+        for ds in datasets:
             field = field_ds[ds.attrs["FIELD_ID"]]
             ddid = ddid_ds[ds.attrs["DATA_DESC_ID"]]
             # spw = spw_ds[ddid.SPECTRAL_WINDOW_ID.values[0]]
             pol = pol_ds[ddid.POLARIZATION_ID.values[0]]
 
             # frequency = spw.CHAN_FREQ.data[0]
-            with dask.annotate(dims=("chan",)):
-                frequency = clone(da.linspace(0.856e9, 2 * 0.856e9, nchan, chunks=chan_chunks))
+            # with dask.annotate(dims=("chan",)):
+            #     frequency = clone(da.linspace(0.856e9, 2 * 0.856e9, nchan, chunks=chan_chunks))
 
-            radec = clone(sky_model.radec)
-            source_type = clone(sky_model.source_type)
-            flux = clone(sky_model.flux)
-            spi = clone(sky_model.spi)
-            log_poly = clone(sky_model.log_poly)
-            ref_freq = clone(sky_model.ref_freq)
-            gauss_shape = clone(sky_model.gauss_shape)
+            # radec = clone(sky_model.radec)
+            # source_type = clone(sky_model.source_type)
+            # flux = clone(sky_model.flux)
+            # spi = clone(sky_model.spi)
+            # log_poly = clone(sky_model.log_poly)
+            # ref_freq = clone(sky_model.ref_freq)
+            # gauss_shape = clone(sky_model.gauss_shape)
+
+            with dask.annotate(dims=("chan",)):
+                frequency = da.linspace(0.856e9, 2 * 0.856e9, nchan, chunks=chan_chunks)
+
+            radec = sky_model.radec
+            source_type = sky_model.source_type
+            flux = sky_model.flux
+            spi = sky_model.spi
+            log_poly = sky_model.log_poly
+            ref_freq = sky_model.ref_freq
+            gauss_shape = sky_model.gauss_shape
 
             lm = radec_to_lm(radec, field.PHASE_DIR.values[0][0])
             lm = inlined_array(lm, radec)
@@ -114,8 +128,6 @@ def predict_vis(args: argparse.Namespace, sky_model: WSCleanModel):
             # Assign visibilities to MODEL_DATA array on the dataset
             ods = ds.assign(**{args.output_column: (("row", "chan", "corr"), vis)})
             out_datasets.append(ods)
-
-            start_chunk += row_chunks
 
         # Write to table
         write = xds_to_zarr(out_datasets, args.output_store, columns=[args.output_column])
