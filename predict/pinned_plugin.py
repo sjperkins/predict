@@ -15,9 +15,9 @@ class PinnedPlugin(SchedulerPlugin):
             dims = annotations["dims"]
             blocks = annotations["blocks"]
         except KeyError as e:
-            logging.warning("PinnedPluggin found no '%s' "
+            logging.warning("PinnedPluggin found no %s "
                             "annotations and will not "
-                            "execute on this graph",
+                            "pin tasks on this graph",
                             str(e))
             return
 
