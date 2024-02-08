@@ -32,9 +32,11 @@ class Application:
     DEFAULT_DIMENSIONS = f"{{chan: {DEFAULT_CHANS}," f"source: {DEFAULT_SOURCES}}}"
 
     DEFAULT_CHUNKS = (
-        f"{{row: {DEFAULT_ROW_CHUNKS},"
+        f"{{"
+        f"row: {DEFAULT_ROW_CHUNKS},"
         f"chan: {DEFAULT_CHAN_CHUNKS},"
-        f"source: {DEFAULT_SOURCE_CHUNKS}}}"
+        f"source: {DEFAULT_SOURCE_CHUNKS}"
+        f"}}"
     )
 
     def __init__(self, args: Iterable[str]):
@@ -159,7 +161,7 @@ class Application:
             elif self.args.plugin == "pinned":
                 client.amm.stop()  # Disable active memory manager
                 client.run_on_scheduler(install_pinned_plugin)
-            elif self.arg.plugin == "none":
+            elif self.args.plugin == "none":
                 pass
             else:
                 raise ValueError(f"Unhandled plugin {self.arg.plugin}")
