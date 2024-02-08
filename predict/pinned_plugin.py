@@ -8,7 +8,6 @@ from dask.distributed.diagnostics.plugin import SchedulerPlugin
 class PinnedPlugin(SchedulerPlugin):
     def update_graph(self, scheduler, keys, annotations=None, **kwargs):
         worker_names = list(scheduler.workers.keys())
-        #worker_names = [ws.name for ws in scheduler.workers.values()]
         nworkers = len(worker_names)
 
         try:
