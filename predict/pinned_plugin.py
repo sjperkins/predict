@@ -15,7 +15,10 @@ class PinnedPlugin(SchedulerPlugin):
             dims = annotations["dims"]
             blocks = annotations["blocks"]
         except KeyError as e:
-            logging.warning("PinnedPluggin found no %s annotations", str(e))
+            logging.warning("PinnedPluggin found no '%s' "
+                            "annotations and will not "
+                            "execute on this graph",
+                            str(e))
             return
 
         for k, block in blocks.items():
@@ -26,10 +29,8 @@ class PinnedPlugin(SchedulerPlugin):
             except (KeyError, ValueError):
                 continue
 
-            # NOTE(sjperkins)
-            # optimise with k.rfind(",", 0, len(k))
-            tuple_key = literal_eval(k)
-            row_chunk = tuple_key[row_dim + 1]
+            assert isinstance(k[0], str)
+            row_chunk = k[row_dim + 1]
             if not isinstance(row_chunk, int):
                 continue
 

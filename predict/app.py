@@ -22,15 +22,19 @@ from predict.utils import _fuse_annotations
 
 
 class Application:
+    # Default number of channels and sources to simulate
     DEFAULT_CHANS = 4096
     DEFAULT_SOURCES = 1000
 
+    # Default chunking for the predict dimensions
     DEFAULT_ROW_CHUNKS = 10000
     DEFAULT_CHAN_CHUNKS = 64
     DEFAULT_SOURCE_CHUNKS = 100
 
+    # Default dimension argument
     DEFAULT_DIMENSIONS = f"{{chan: {DEFAULT_CHANS}," f"source: {DEFAULT_SOURCES}}}"
 
+    # Default chunk argument
     DEFAULT_CHUNKS = (
         f"{{"
         f"row: {DEFAULT_ROW_CHUNKS},"
@@ -38,6 +42,12 @@ class Application:
         f"source: {DEFAULT_SOURCE_CHUNKS}"
         f"}}"
     )
+
+    # Scheduler options pertinent to the plugins we test
+    PLUGIN_OPTIONS_SCHEDULER_OPTIONS = {
+        "distributed.scheduler.worker-saturation": "inf",
+        "distributed.scheduler.work-stealing": False,
+    }
 
     def __init__(self, args: Iterable[str]):
         logging.basicConfig(format="%(levelname)s - %(message)s", level=logging.INFO)
@@ -99,11 +109,12 @@ class Application:
         p.add_argument("--expand_vis", action="store_true", default=False)
         p.add_argument("--optimize-graph", action="store_true", default=False)
         p.add_argument("--plugin", choices=["none", "pinned", "autorestrictor"],
-                       default="autorestrictor")
+                       default="none")
 
         args = p.parse_args(args)
 
         if args.output_store.exists():
+            logging.warning("Removing existing output store %s", args.output_store)
             args.output_store.rm(recursive=True)
         args.dimensions.setdefault("chan", Application.DEFAULT_CHANS)
         args.dimensions.setdefault("source", Application.DEFAULT_SOURCES)
@@ -146,7 +157,6 @@ class Application:
             )
             stack.enter_context(
                 dask.config.set({
-                    "distributed.scheduler.work-stealing": False,
                     "distributed.scheduler.dashboard.tasks.task-stream-length": sys.maxsize})
             )
 
@@ -156,9 +166,11 @@ class Application:
             client = self.get_client(self.args, stack)
 
             if self.args.plugin == "autorestrictor":
+                stack.enter_context(dask.config.set(PLUGIN_OPTIONS_SCHEDULER_OPTIONS))
                 client.amm.stop()  # Disable active memory manager
                 client.run_on_scheduler(install_autorestrictor_plugin)
             elif self.args.plugin == "pinned":
+                stack.enter_context(dask.config.set(PLUGIN_OPTIONS_SCHEDULER_OPTIONS))
                 client.amm.stop()  # Disable active memory manager
                 client.run_on_scheduler(install_pinned_plugin)
             elif self.args.plugin == "none":
