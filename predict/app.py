@@ -166,11 +166,11 @@ class Application:
             client = self.get_client(self.args, stack)
 
             if self.args.plugin == "autorestrictor":
-                stack.enter_context(dask.config.set(PLUGIN_OPTIONS_SCHEDULER_OPTIONS))
+                stack.enter_context(dask.config.set(self.PLUGIN_OPTIONS_SCHEDULER_OPTIONS))
                 client.amm.stop()  # Disable active memory manager
                 client.run_on_scheduler(install_autorestrictor_plugin)
             elif self.args.plugin == "pinned":
-                stack.enter_context(dask.config.set(PLUGIN_OPTIONS_SCHEDULER_OPTIONS))
+                stack.enter_context(dask.config.set(self.PLUGIN_OPTIONS_SCHEDULER_OPTIONS))
                 client.amm.stop()  # Disable active memory manager
                 client.run_on_scheduler(install_pinned_plugin)
             elif self.args.plugin == "none":
