@@ -58,7 +58,7 @@ def predict_vis(args: argparse.Namespace, sky_model: WSCleanModel):
 
     if args.plugin == "pinned":
         ctx = dask.config.set(array_plugins=[dim_propagator("row")])
-    elif args.plugin in ("none", "autorestrictor"):
+    elif args.plugin in {"none", "autorestrictor"}:
         ctx = nullcontext()
     else:
         raise ValueError(f"Unhandled {args.plugin} case")
