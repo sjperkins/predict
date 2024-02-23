@@ -66,31 +66,13 @@ def predict_vis(args: argparse.Namespace, sky_model: WSCleanModel):
 
     with ctx:
         datasets = annotate_datasets(datasets)
-
-        # ds_row_chunks = [len(ds.chunks["row"]) for ds in datasets]
-        # nchunks = sum(ds_row_chunks)
-        # start_chunk = 0
-
         out_datasets = []
 
-        # for ds, row_chunks in zip(datasets, ds_row_chunks):
         for ds in datasets:
             field = field_ds[ds.attrs["FIELD_ID"]]
             ddid = ddid_ds[ds.attrs["DATA_DESC_ID"]]
             # spw = spw_ds[ddid.SPECTRAL_WINDOW_ID.values[0]]
             pol = pol_ds[ddid.POLARIZATION_ID.values[0]]
-
-            # frequency = spw.CHAN_FREQ.data[0]
-            # with dask.annotate(dims=("chan",)):
-            #     frequency = clone(da.linspace(0.856e9, 2 * 0.856e9, nchan, chunks=chan_chunks))
-
-            # radec = clone(sky_model.radec)
-            # source_type = clone(sky_model.source_type)
-            # flux = clone(sky_model.flux)
-            # spi = clone(sky_model.spi)
-            # log_poly = clone(sky_model.log_poly)
-            # ref_freq = clone(sky_model.ref_freq)
-            # gauss_shape = clone(sky_model.gauss_shape)
 
             with dask.annotate(dims=("chan",)):
                 frequency = da.linspace(0.856e9, 2 * 0.856e9, nchan, chunks=chan_chunks)
@@ -121,11 +103,6 @@ def predict_vis(args: argparse.Namespace, sky_model: WSCleanModel):
                     gauss_shape,
                     frequency,
                 )
-
-                # vis = inlined_array(vis, [
-                #     lm, source_type, flux, spi, log_poly,
-                #     ref_freq, gauss_shape, frequency])
-                #vis = inlined_array(vis)
 
                 if args.expand_vis:
                     vis = expand_vis(vis, pol.NUM_CORR.values[0])
