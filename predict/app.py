@@ -106,7 +106,7 @@ class Application:
         p.add_argument("--report-prefix", default="report",
                        type=Application.make_report_url)
 
-        p.add_argument("--expand_vis", action="store_true", default=False)
+        p.add_argument("--expand-vis", action="store_true", default=False)
         p.add_argument("--optimize-graph", action="store_true", default=False)
         p.add_argument("--plugin", choices=["none", "pinned", "autorestrictor"],
                        default="none")
