@@ -98,7 +98,6 @@ def predict_vis(args: argparse.Namespace, sky_model: WSCleanModel):
             gauss_shape = sky_model.gauss_shape
 
             lm = radec_to_lm(radec, field.PHASE_DIR.values[0][0])
-            lm = inlined_array(lm, radec)
 
             with warnings.catch_warnings():
                 # Ignore dask chunk warnings emitted when going from 1D
