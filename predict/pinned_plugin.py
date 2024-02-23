@@ -1,4 +1,3 @@
-from ast import literal_eval
 import logging
 import math
 
@@ -33,10 +32,10 @@ class PinnedPlugin(SchedulerPlugin):
             if not isinstance(row_chunk, int):
                 continue
 
-            worker_id = math.floor(nworkers * ((start + row_chunk) / total))
-            ts = scheduler.tasks.get(k)
-            ts.worker_restrictions = set([worker_names[worker_id]])
-            ts.loose_restrictions = True
+            if ts := scheduler.tasks.get(k):
+                worker_id = math.floor(nworkers * ((start + row_chunk) / total))
+                ts.worker_restrictions = set([worker_names[worker_id]])
+                ts.loose_restrictions = True
 
 
 
