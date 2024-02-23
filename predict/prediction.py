@@ -56,7 +56,13 @@ def predict_vis(args: argparse.Namespace, sky_model: WSCleanModel):
         chunks={k: args.chunks[k] for k in ("row",)},
     )
 
-    ctx = dask.config.set(array_plugins=[dim_propagator("row")]) if True else nullcontext()
+    if args.plugin == "pinned":
+        ctx = dask.config.set(array_plugins=[dim_propagator("row")])
+    elif args.plugin in ("none", "autorestrictor"):
+        ctx = nullcontext()
+    else:
+        raise ValueError(f"Unhandled {args.plugin} case")
+
 
     with ctx:
         datasets = annotate_datasets(datasets)
