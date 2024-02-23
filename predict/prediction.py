@@ -1,5 +1,5 @@
 import argparse
-from contextlib import nullcontext
+from contextlib import ExitStack
 import math
 import warnings
 
@@ -56,15 +56,15 @@ def predict_vis(args: argparse.Namespace, sky_model: WSCleanModel):
         chunks={k: args.chunks[k] for k in ("row",)},
     )
 
-    if args.plugin == "pinned":
-        ctx = dask.config.set(array_plugins=[dim_propagator("row")])
-    elif args.plugin in {"none", "autorestrictor"}:
-        ctx = nullcontext()
-    else:
-        raise ValueError(f"Unhandled {args.plugin} case")
+    with ExitStack() as stack:
+        if args.plugin == "pinned":
+            stack.enter_context(dask.config.set(array_plugins=[dim_propagator("row")]))
+        elif args.plugin in {"none", "autorestrictor"}:
+            pass
+        else:
+            raise ValueError(f"Unhandled {args.plugin} case")
 
 
-    with ctx:
         datasets = annotate_datasets(datasets)
         out_datasets = []
 
