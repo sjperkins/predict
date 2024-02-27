@@ -9,6 +9,23 @@ from typing import Iterable, Union
 from uuid import uuid4
 
 def annotate_datasets(datasets):
+    """Annotate dask arrays on datasets with:
+
+    1. Their xarray dimension schema. e.g. ("row", "chan", "corr").
+    2. The dataset id.
+    3. The number of blocks in each dimension.
+
+    Parameters
+    ----------
+
+    datasets: list of xarray datasets
+
+    Returns
+    -------
+    datasets: list of xarray datasets
+        The original list of datasets with annotations
+        added to the wrapped dask arrays
+    """
     ds_blocks = [{d: len(c) for d, c in ds.chunks.items()} for ds in datasets]
     row_blocks = [blocks["row"] for blocks in ds_blocks]
     total_row_blocks = sum(row_blocks)
