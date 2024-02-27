@@ -39,7 +39,7 @@ def predict_vis(args: argparse.Namespace, sky_model: WSCleanModel):
     store = DaskMSStore(args.store)
     kw = {"group_cols": "__row__"} if store.type() == "casa" else {}
 
-    ddid_ds = xds_from_storage_table(f"{args.store}::DATA_DESCRIPTION")
+    ddid_ds = xds_from_storage_table(f"{args.store}::DATA_DESCRIPTION", **kw)
     pol_ds = xds_from_storage_table(f"{args.store}::POLARIZATION", **kw)
     spw_ds = xds_from_storage_table(f"{args.store}::SPECTRAL_WINDOW", **kw)
     field_ds = xds_from_storage_table(f"{args.store}::FIELD", **kw)
