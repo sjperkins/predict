@@ -13,7 +13,7 @@ def annotate_datasets(datasets):
 
     1. Their xarray dimension schema. e.g. ("row", "chan", "corr").
     2. The dataset id.
-    3. The number of blocks in each dimension.
+    3. The number of blocks (chunks) in each dimension.
 
     Parameters
     ----------
